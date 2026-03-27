@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holdings Diff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    padding: 20px 60px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: rgba(14,14,15,0.92);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 36px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #7a7a82;
+    text-decoration: none;
+    transition: color 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .nav-links a:hover { color: #f0efe8; }
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #161618;
+    --surface2: #1e1e21;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.14);
+    --text: #f0efe8;
+    --muted: #7a7a82;
+    --accent: #c8f57a;
+    --accent-dim: rgba(200,245,122,0.1);
+    --red: #ff6b6b;
+    --red-dim: rgba(255,107,107,0.1);
+    --green: #6bffb0;
+    --green-dim: rgba(107,255,176,0.1);
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Grid noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 52px;
+  }
+
+  .header-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .header h1 {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .header h1 span {
+    color: var(--accent);
+  }
+
+  .header p {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 480px;
+  }
+
+  /* Upload grid */
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .upload-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .upload-label .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .upload-label.prev .dot { background: var(--muted); }
+  .upload-label.curr .dot { background: var(--accent); }
+
+  .upload-zone {
+    border: 1px dashed var(--border-hover);
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+
+  .upload-zone.loaded {
+    border-style: solid;
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .upload-zone .zone-icon {
+    width: 28px;
+    height: 28px;
+    opacity: 0.4;
+  }
+
+  .upload-zone.loaded .zone-icon { opacity: 0; height: 0; }
+
+  .zone-text {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .zone-filename {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    display: none;
+  }
+
+  .upload-zone.loaded .zone-filename { display: block; }
+  .upload-zone.loaded .zone-text { display: none; }
+
+  /* Column selector */
+  .col-row {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .col-row.visible { display: flex; }
+
+  .col-row label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border-hover);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: var(--accent); }
+
+  /* Compare button */
+  .compare-btn {
+    display: none;
+    width: 100%;
+    padding: 14px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    margin-bottom: 40px;
+  }
+
+  .compare-btn.visible { display: block; }
+  .compare-btn:hover { background: rgba(200,245,122,0.18); }
+  .compare-btn:active { transform: scale(0.99); }
+
+  /* Results */
+  #results { display: none; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .metric-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .metric-value {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  .metric.bought .metric-value { color: var(--green); }
+  .metric.sold .metric-value { color: var(--red); }
+  .metric.held .metric-value { color: var(--text); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 7px 20px;
+    font-size: 13px;
+    font-weight: 400;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+  }
+
+  .tab.active {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border-hover);
+  }
+
+  .tab.bought.active { color: var(--green); }
+  .tab.sold.active { color: var(--red); }
+
+  /* Table */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    font-weight: 400;
+    background: var(--surface2);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--surface2); }
+
+  .isin-cell {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .indicator.bought { background: var(--green); }
+  .indicator.sold { background: var(--red); }
+
+  td:first-child { width: 32px; }
+
+  /* Export button */
+  .export-btn {
+    padding: 10px 22px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 400;
+    border-radius: 7px;
+    border: 1px solid var(--border-hover);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .export-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Empty state */
+  .empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 560px) {
+    .upload-grid { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <ul class="nav-links">
+    <li><a href="/">About</a></li>
+    <li><a href="/#projects">Projects</a></li>
+    <li><a href="/#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<div class="page" style="padding-top: 100px;">
+
+  <div class="header">
+    <p class="header-label">Sales &amp; Trading — IG Credit</p>
+    <h1>Holdings <span>Diff</span></h1>
+    <p>Upload two monthly portfolio files to identify bonds bought and sold between periods.</p>
+  </div>
+
+  <div class="upload-grid">
+    <div>
+      <div class="upload-label prev"><span class="dot"></span>Previous month</div>
+      <div class="upload-zone" id="zone-prev" onclick="document.getElementById('file-prev').click()">
+        <input type="file" id="file-prev" accept=".xlsx" style="display:none" onchange="handleFile(this,'prev')">
+        <svg class="zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="zone-text">Click to upload .xlsx</span>
+        <span class="zone-filename" id="fname-prev"></span>
+      </div>
+    </div>
+    <div>
+      <div class="upload-label curr"><span class="dot"></span>Current month</div>
+      <div class="upload-zone" id="zone-curr" onclick="document.getElementById('file-curr').click()">
+        <input type="file" id="file-curr" accept=".xlsx" style="display:none" onchange="handleFile(this,'curr')">
+        <svg class="zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="zone-text">Click to upload .xlsx</span>
+        <span class="zone-filename" id="fname-curr"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-row" id="col-row">
+    <label>ISIN column:</label>
+    <select id="isin-col"></select>
+  </div>
+
+  <button class="compare-btn" id="compare-btn" onclick="compare()">Compare holdings →</button>
+
+  <div id="results">
+    <div class="metrics">
+      <div class="metric bought">
+        <p class="metric-label">Bought</p>
+        <p class="metric-value" id="m-bought">—</p>
+      </div>
+      <div class="metric sold">
+        <p class="metric-label">Sold</p>
+        <p class="metric-value" id="m-sold">—</p>
+      </div>
+      <div class="metric held">
+        <p class="metric-label">Held</p>
+        <p class="metric-value" id="m-held">—</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab bought active" id="tab-bought" onclick="switchTab('bought')">Bought</button>
+      <button class="tab sold" id="tab-sold" onclick="switchTab('sold')">Sold</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="thead-row"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <button class="export-btn" onclick="exportExcel()">Export to Excel</button>
+  </div>
+
+</div>
+
+<script>
+  let data = { prev: null, curr: null };
+  let boughtRows = [], soldRows = [], allCols = [];
+  let activeTab = 'bought';
+
+  function handleFile(input, which) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      data[which] = rows;
+      const zone = document.getElementById('zone-' + which);
+      zone.classList.add('loaded');
+      document.getElementById('fname-' + which).textContent = file.name;
+      if (data.prev && data.curr) setupColSelector();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function setupColSelector() {
+    const cols = Object.keys(data.prev[0] || {});
+    allCols = cols;
+    const sel = document.getElementById('isin-col');
+    sel.innerHTML = '';
+    cols.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      if (c.toUpperCase().includes('ISIN')) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    document.getElementById('col-row').classList.add('visible');
+    document.getElementById('compare-btn').classList.add('visible');
+  }
+
+  function compare() {
+    const isinCol = document.getElementById('isin-col').value;
+    const prevMap = new Map(data.prev.map(r => [String(r[isinCol]).trim(), r]));
+    const currMap = new Map(data.curr.map(r => [String(r[isinCol]).trim(), r]));
+
+    boughtRows = data.curr.filter(r => !prevMap.has(String(r[isinCol]).trim()));
+    soldRows = data.prev.filter(r => !currMap.has(String(r[isinCol]).trim()));
+    const heldCount = data.curr.filter(r => prevMap.has(String(r[isinCol]).trim())).length;
+
+    document.getElementById('m-bought').textContent = boughtRows.length;
+    document.getElementById('m-sold').textContent = soldRows.length;
+    document.getElementById('m-held').textContent = heldCount;
+    document.getElementById('results').style.display = 'block';
+    switchTab('bought');
+  }
+
+  function getDisplayCols() {
+    const isinCol = document.getElementById('isin-col').value;
+    const priority = col => {
+      const c = col.toLowerCase();
+      if (col === isinCol) return 0;
+      if (c.includes('name') || c.includes('description') || c.includes('desc')) return 1;
+      if (c.includes('notional') || c.includes('nominal') || c.includes('face') || c.includes('mv') || c.includes('market')) return 2;
+      return 3;
+    };
+    return [...allCols].sort((a,b) => priority(a) - priority(b)).slice(0, 4);
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    ['bought','sold'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    });
+    renderTable(tab === 'bought' ? boughtRows : soldRows, tab);
+  }
+
+  function renderTable(rows, type) {
+    const displayCols = getDisplayCols();
+    const isinCol = document.getElementById('isin-col').value;
+
+    const thead = document.getElementById('thead-row');
+    thead.innerHTML = '<th></th>' + displayCols.map(c => `<th>${c}</th>`).join('');
+
+    const tbody = document.getElementById('tbody');
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${displayCols.length + 1}"><div class="empty">No ${type === 'bought' ? 'new' : 'removed'} positions this period</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r =>
+      `<tr>
+        <td><span class="indicator ${type}"></span></td>
+        ${displayCols.map(c => `<td class="${c === isinCol ? 'isin-cell' : ''}">${r[c] ?? ''}</td>`).join('')}
+      </tr>`
+    ).join('');
+  }
+
+  function exportExcel() {
+    const wb = XLSX.utils.book_new();
+    const bSheet = XLSX.utils.json_to_sheet(boughtRows.length ? boughtRows : [{}]);
+    const sSheet = XLSX.utils.json_to_sheet(soldRows.length ? soldRows : [{}]);
+    XLSX.utils.book_append_sheet(wb, bSheet, 'Bought');
+    XLSX.utils.book_append_sheet(wb, sSheet, 'Sold');
+    XLSX.writeFile(wb, 'holdings_diff.xlsx');
+  }
+</script>
+</body>
+</html>
