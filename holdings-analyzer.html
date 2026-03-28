@@ -276,22 +276,22 @@
     <div>
       <div class="upload-label prev"><span class="dot"></span>Previous period</div>
       <div class="upload-zone" id="zone-prev" onclick="document.getElementById('file-prev').click()">
-        <input type="file" id="file-prev" accept=".xlsx" style="display:none" onchange="handleFile(this,'prev')">
+        <input type="file" id="file-prev" accept=".xlsx,.csv" style="display:none" onchange="handleFile(this,'prev')">
         <svg class="zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="zone-text">Click to upload .xlsx</span>
+        <span class="zone-text">Click to upload .xlsx or .csv</span>
         <span class="zone-filename" id="fname-prev"></span>
       </div>
     </div>
     <div>
       <div class="upload-label curr"><span class="dot"></span>Current period</div>
       <div class="upload-zone" id="zone-curr" onclick="document.getElementById('file-curr').click()">
-        <input type="file" id="file-curr" accept=".xlsx" style="display:none" onchange="handleFile(this,'curr')">
+        <input type="file" id="file-curr" accept=".xlsx,.csv" style="display:none" onchange="handleFile(this,'curr')">
         <svg class="zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 8l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="zone-text">Click to upload .xlsx</span>
+        <span class="zone-text">Click to upload .xlsx or .csv</span>
         <span class="zone-filename" id="fname-curr"></span>
       </div>
     </div>
@@ -401,17 +401,25 @@
   function handleFile(input, which) {
     const file = input.files[0];
     if (!file) return;
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
     const reader = new FileReader();
     reader.onload = e => {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      let rows;
+      if (isCsv) {
+        const wb = XLSX.read(e.target.result, { type: 'string' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      }
       data[which] = rows;
       document.getElementById('zone-' + which).classList.add('loaded');
       document.getElementById('fname-' + which).textContent = file.name;
       if (data.prev && data.curr) setupColSelectors();
     };
-    reader.readAsArrayBuffer(file);
+    isCsv ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
   }
 
   function setupColSelectors() {
