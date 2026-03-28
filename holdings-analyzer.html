@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Holdings Diff</title>
+<title>Holdings Analyzer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -440,7 +440,7 @@
 <div class="page" style="padding-top: 100px;">
 
   <div class="header">
-<h1>Holdings <span>Diff</span></h1>
+<h1>Holdings <span>Analyzer</span></h1>
     <p>Upload two monthly portfolio files to identify bonds bought and sold between periods.</p>
   </div>
 
@@ -609,7 +609,7 @@
     const sSheet = XLSX.utils.json_to_sheet(soldRows.length ? soldRows : [{}]);
     XLSX.utils.book_append_sheet(wb, bSheet, 'Bought');
     XLSX.utils.book_append_sheet(wb, sSheet, 'Sold');
-    XLSX.writeFile(wb, 'holdings_diff.xlsx');
+    XLSX.writeFile(wb, 'holdings_analyzer.xlsx');
   }
 </script>
 </body>
